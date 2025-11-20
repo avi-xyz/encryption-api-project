@@ -3,6 +3,7 @@ package com.aviencryption.controller;
 import com.aviencryption.service.EncryptionService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -127,6 +128,7 @@ public class EncryptionController {
     @AllArgsConstructor
     public static class EncryptRequest {
         @NotBlank(message = "Plain text cannot be blank")
+        @Size(max = 1000000, message = "Plain text cannot exceed 1MB (1,000,000 characters)")
         private String plainText;
     }
 

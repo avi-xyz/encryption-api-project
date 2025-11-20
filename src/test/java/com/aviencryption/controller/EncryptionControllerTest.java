@@ -172,4 +172,19 @@ class EncryptionControllerTest {
 
         verify(encryptionService, times(1)).encryptAndStore(longText);
     }
+
+    @Test
+    void testEncrypt_ExceedsMaxSize() throws Exception {
+        // Given - String exceeding 1MB limit
+        String tooLargeText = "A".repeat(1000001);
+        EncryptionController.EncryptRequest request = new EncryptionController.EncryptRequest(tooLargeText);
+
+        // When & Then - Should fail validation
+        mockMvc.perform(post("/api/encrypt")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        verify(encryptionService, never()).encryptAndStore(anyString());
+    }
 }
