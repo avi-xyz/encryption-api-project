@@ -1,0 +1,47 @@
+# Ignore files not needed in Docker build context
+# This speeds up builds and reduces image size
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+PROJECT_ARCHITECTURE.md
+*.md
+
+# CI/CD
+.github/
+
+# Terraform
+terraform/
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Scripts
+scripts/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

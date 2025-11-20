@@ -1,0 +1,71 @@
+# Docker Compose configuration for local development
+# Starts MySQL 8 database and the Encryption API application
+#
+# Usage:
+#   docker-compose up    - Start all services
+#   docker-compose down  - Stop and remove containers
+#   docker-compose logs  - View logs
+
+services:
+  # MySQL 8 Database
+  mysql:
+    image: mysql:8.0
+    container_name: encryption-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: encryption_db
+      MYSQL_USER: encryptuser
+      MYSQL_PASSWORD: encryptpass
+    ports:
+      - "3306:3306"
+    volumes:
+      # Persist database data
+      - mysql-data:/var/lib/mysql
+      # Custom MySQL configuration
+      - ./mysql-config.cnf:/etc/mysql/conf.d/custom.cnf
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - encryption-network
+
+  # Encryption API Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: encryption-api
+    environment:
+      # Spring Profile
+      SPRING_PROFILES_ACTIVE: local
+      # Database connection
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/encryption_db?useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: encryptuser
+      SPRING_DATASOURCE_PASSWORD: encryptpass
+      # Encryption key (base64-encoded 256-bit key for local dev)
+      ENCRYPTION_MASTER_KEY: dGhpc2lzYXRlc3RrZXlmb3Jsb2NhbGRldmVsb3BtZW50MTIzNDU2Nzg5MA==
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+    networks:
+      - encryption-network
+
+# Named volumes for data persistence
+volumes:
+  mysql-data:
+    driver: local
+
+# Custom network for service communication
+networks:
+  encryption-network:
+    driver: bridge

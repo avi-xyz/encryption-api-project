@@ -1,0 +1,27 @@
+# Production Configuration
+# Activated with: --spring.profiles.active=prod
+
+spring:
+  datasource:
+    # These will be injected from environment variables in ECS
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: validate  # Don't auto-create tables in production
+
+# Encryption Configuration
+# Master key loaded from AWS Secrets Manager
+encryption:
+  master-key: ${ENCRYPTION_MASTER_KEY}
+
+# Production logging
+logging:
+  level:
+    com.aviencryption: INFO
+    org.springframework.web: WARN
+    org.hibernate: WARN

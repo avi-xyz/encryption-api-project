@@ -1,0 +1,21 @@
+# Custom MySQL 8 configuration for encryption API
+# Optimized for development and security
+
+[mysqld]
+# Character set
+character-set-server=utf8mb4
+collation-server=utf8mb4_unicode_ci
+
+# Security
+# Require secure connections in production (disabled for local dev)
+# require_secure_transport=ON
+
+# Performance
+max_connections=200
+innodb_buffer_pool_size=256M
+
+# Logging (useful for debugging)
+general_log=0
+slow_query_log=1
+slow_query_log_file=/var/log/mysql/slow-query.log
+long_query_time=2

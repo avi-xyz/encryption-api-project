@@ -1,0 +1,19 @@
+# Example Terraform Variables File
+# Copy this file to terraform.tfvars and fill in your values
+# NEVER commit terraform.tfvars to version control (contains secrets)
+
+aws_region  = "us-east-1"
+environment = "development"
+
+# Database Configuration
+db_username = "admin"
+db_password = "your-secure-password-here" # Change this!
+
+# Master Encryption Key
+# Generate with: openssl rand -base64 32
+master_encryption_key = "your-base64-encoded-key-here" # Change this!
+
+# ECS Configuration (adjust for production)
+ecs_task_cpu      = "512"
+ecs_task_memory   = "1024"
+ecs_desired_count = 2

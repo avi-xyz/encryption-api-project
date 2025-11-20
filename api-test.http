@@ -1,0 +1,48 @@
+### Health Check
+GET http://localhost:8080/api/health
+
+### Encrypt Data - Example 1
+POST http://localhost:8080/api/encrypt
+Content-Type: application/json
+
+{
+  "plainText": "Hello from VSCode! This is my secret message."
+}
+
+### Decrypt Data - Replace {id} with actual ID from encrypt response
+GET http://localhost:8080/api/decrypt/8
+
+### Encrypt Data - Example 2 (Unicode)
+POST http://localhost:8080/api/encrypt
+Content-Type: application/json
+
+{
+  "plainText": "Unicode test: 世界 🌍 Привет مرحبا"
+}
+
+### Encrypt Data - Example 3 (Special Characters)
+POST http://localhost:8080/api/encrypt
+Content-Type: application/json
+
+{
+  "plainText": "Special chars: !@#$%^&*()_+-={}[]|\\:;\"'<>,.?/~`"
+}
+
+### Encrypt Data - Example 4 (Large Text)
+POST http://localhost:8080/api/encrypt
+Content-Type: application/json
+
+{
+  "plainText": "This is a longer message that contains sensitive information like credit card numbers, social security numbers, or other PII that needs to be encrypted and stored securely in the database."
+}
+
+### Test Error Handling - Empty String (should fail)
+POST http://localhost:8080/api/encrypt
+Content-Type: application/json
+
+{
+  "plainText": ""
+}
+
+### Test Error Handling - Non-existent ID (should fail)
+GET http://localhost:8080/api/decrypt/999999

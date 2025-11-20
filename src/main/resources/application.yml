@@ -1,0 +1,48 @@
+# Default Spring Boot Configuration
+# This file contains common settings across all environments
+
+spring:
+  application:
+    name: encryption-api
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update  # Automatically create/update database schema
+    show-sql: false     # Set to true for debugging SQL queries
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+
+  # Database Connection Pool
+  datasource:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+
+# Server Configuration
+server:
+  port: 8080
+  shutdown: graceful  # Graceful shutdown for containers
+
+# Actuator Endpoints (Health Checks)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  health:
+    db:
+      enabled: true
+
+# Logging
+logging:
+  level:
+    com.aviencryption: INFO
+    org.springframework.web: WARN
+    org.hibernate: WARN
