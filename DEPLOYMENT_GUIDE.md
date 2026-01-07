@@ -47,7 +47,37 @@ aws sts get-caller-identity
 
 ---
 
-## Step-by-Step Deployment
+## Quick Deployment (Automated)
+
+**NEW!** Use the automated deployment script to handle Steps 2-5 automatically:
+
+```bash
+./deploy.sh
+```
+
+This script will:
+- ✅ Check all prerequisites
+- ✅ Generate secure credentials
+- ✅ Create terraform.tfvars file
+- ✅ Build Lambda JAR
+- ✅ Create S3 bucket and upload JAR
+
+**Then you just need to:**
+```bash
+cd terraform
+terraform init
+terraform apply
+```
+
+**Total time**: 20-25 minutes (build: 5 min, terraform: 15-20 min)
+
+See [Manual Deployment](#manual-deployment-step-by-step) below for detailed step-by-step instructions.
+
+---
+
+## Manual Deployment (Step-by-Step)
+
+If you prefer to run each step manually, follow the detailed instructions below.
 
 ### Step 1: Clone the Repository
 
