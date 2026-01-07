@@ -185,7 +185,65 @@ rds_endpoint = "encryption-api-db.xyz.us-east-1.rds.amazonaws.com:3306"
 
 ---
 
-## Step 7: Test Your Deployment
+## Step 7: View All Deployment Information (Automated)
+
+**NEW**: Use the automated script to get all your deployment details in one command!
+
+```bash
+# Go back to project root
+cd ..
+
+# Run the deployment info script
+./get-deployment-info.sh
+
+# Or save to a file (deployment-info.txt is in .gitignore)
+./get-deployment-info.sh --save
+```
+
+This script automatically retrieves and displays:
+- ✅ API Gateway endpoint and ID
+- ✅ Lambda function details (ARN, memory, runtime)
+- ✅ RDS database endpoint and status
+- ✅ VPC and NAT Gateway IDs
+- ✅ S3 bucket name and size
+- ✅ CloudWatch log group
+- ✅ AWS Secrets Manager secrets
+- ✅ Cost estimates
+- ✅ Useful commands for monitoring and updates
+- ✅ Live API health check
+
+**Example output:**
+```
+🚀 ENCRYPTION API - DEPLOYMENT INFORMATION
+
+📋 AWS ACCOUNT INFORMATION
+  AWS Account ID:                YOUR-ACCOUNT-ID
+  AWS Region:                    us-east-1
+
+🌐 API GATEWAY
+  API Gateway ID:                abc123xyz
+  API Endpoint:                  https://abc123xyz.execute-api.us-east-1.amazonaws.com
+  Health Check URL:              https://abc123xyz.execute-api.us-east-1.amazonaws.com/api/health
+
+⚡ AWS LAMBDA FUNCTION
+  Function Name:                 encryption-api-function
+  Runtime:                       java17
+  Memory Size:                   512 MB
+  Timeout:                       30 seconds
+
+🗄️  RDS MYSQL DATABASE
+  DB Instance ID:                encryption-api-db
+  Endpoint:                      encryption-api-db.xyz.us-east-1.rds.amazonaws.com:3306
+  Status:                        available
+  Engine:                        mysql 8.0.43
+
+💰 ESTIMATED MONTHLY COST
+  Total:                         $46-59/month
+```
+
+---
+
+## Step 8: Test Your Deployment
 
 ### Quick Health Check
 
@@ -232,7 +290,7 @@ curl "$API_URL/api/decrypt/1"
 
 ---
 
-## Step 8: Monitor Your Deployment
+## Step 9: Monitor Your Deployment
 
 ### View Lambda Logs
 
