@@ -1,19 +1,20 @@
-# Example Terraform Variables File
+# Terraform Variables for Encryption API
 # Copy this file to terraform.tfvars and fill in your values
-# NEVER commit terraform.tfvars to version control (contains secrets)
+# NEVER commit terraform.tfvars to git!
 
+# AWS Configuration
 aws_region  = "us-east-1"
 environment = "development"
 
 # Database Configuration
 db_username = "admin"
-db_password = "your-secure-password-here" # Change this!
+db_password = "REPLACE_WITH_SECURE_PASSWORD"  # Generate with: openssl rand -base64 24
 
-# Master Encryption Key
-# Generate with: openssl rand -base64 32
-master_encryption_key = "your-base64-encoded-key-here" # Change this!
+# Encryption Configuration
+master_encryption_key = "REPLACE_WITH_BASE64_KEY"  # Generate with: openssl rand -base64 32
 
-# ECS Configuration (adjust for production)
-ecs_task_cpu      = "512"
-ecs_task_memory   = "1024"
-ecs_desired_count = 2
+# S3 Bucket (for Lambda code)
+s3_bucket_name = "your-lambda-code-bucket"
+
+# Tags
+project_name = "encryption-api"

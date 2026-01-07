@@ -1,18 +1,23 @@
-# Terraform Outputs for Encryption API Infrastructure
+# Terraform Outputs for Encryption API Infrastructure (Lambda)
 
-output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer"
-  value       = aws_lb.main.dns_name
+output "api_gateway_url" {
+  description = "API Gateway endpoint URL - use this to access the API"
+  value       = aws_apigatewayv2_api.main.api_endpoint
 }
 
-output "alb_url" {
-  description = "Full URL of the Application Load Balancer"
-  value       = "http://${aws_lb.main.dns_name}"
+output "api_gateway_id" {
+  description = "API Gateway ID"
+  value       = aws_apigatewayv2_api.main.id
 }
 
-output "ecr_repository_url" {
-  description = "URL of the ECR repository for Docker images"
-  value       = aws_ecr_repository.app.repository_url
+output "lambda_function_name" {
+  description = "Lambda function name"
+  value       = aws_lambda_function.api.function_name
+}
+
+output "lambda_function_arn" {
+  description = "Lambda function ARN"
+  value       = aws_lambda_function.api.arn
 }
 
 output "rds_endpoint" {
@@ -26,17 +31,12 @@ output "rds_database_name" {
   value       = aws_db_instance.mysql.db_name
 }
 
-output "ecs_cluster_name" {
-  description = "Name of the ECS cluster"
-  value       = aws_ecs_cluster.main.name
+output "cloudwatch_log_group_lambda" {
+  description = "CloudWatch log group for Lambda logs"
+  value       = aws_cloudwatch_log_group.lambda.name
 }
 
-output "ecs_service_name" {
-  description = "Name of the ECS service"
-  value       = aws_ecs_service.app.name
-}
-
-output "cloudwatch_log_group" {
-  description = "CloudWatch log group for application logs"
-  value       = aws_cloudwatch_log_group.app.name
+output "cloudwatch_log_group_api_gateway" {
+  description = "CloudWatch log group for API Gateway logs"
+  value       = aws_cloudwatch_log_group.api_gateway.name
 }

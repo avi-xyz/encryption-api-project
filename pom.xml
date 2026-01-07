@@ -97,6 +97,13 @@
             <artifactId>secretsmanager</artifactId>
             <version>2.21.0</version>
         </dependency>
+
+        <!-- AWS Serverless Java Container - Run Spring Boot on Lambda -->
+        <dependency>
+            <groupId>com.amazonaws.serverless</groupId>
+            <artifactId>aws-serverless-java-container-springboot3</artifactId>
+            <version>2.0.0</version>
+        </dependency>
     </dependencies>
 
     <build>

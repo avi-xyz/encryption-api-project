@@ -65,3 +65,14 @@ credentials.json
 
 # Claude Code
 .claude/
+
+# Deployment artifacts
+deployment-info.txt
+terraform/terraform.tfvars
+
+# Security - ensure sensitive files never committed
+terraform/terraform.tfvars
+terraform/*.tfstate*
+lambda-build/
+*.backup
+target/encryption-api-lambda.jar

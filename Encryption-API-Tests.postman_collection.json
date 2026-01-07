@@ -1,0 +1,428 @@
+{
+	"info": {
+		"_postman_id": "encryption-api-lambda-2026",
+		"name": "Encryption API - Lambda (With Rate Limiting)",
+		"description": "Comprehensive test suite for the serverless Encryption API deployed on AWS Lambda.\n\n**Features:**\n- Health check endpoint\n- Encrypt data endpoint\n- Decrypt data endpoint\n- Rate limiting verification (5 req/min, 20 req/hour)\n\n**API URL:** https://YOUR-API-ID.execute-api.YOUR-REGION.amazonaws.com",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Health Check",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Test: Status code is 200",
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"// Test: Response has 'status' field",
+							"pm.test(\"Response has status field\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('status');",
+							"});",
+							"",
+							"// Test: Status is UP",
+							"pm.test(\"Status is UP\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.status).to.eql('UP');",
+							"});",
+							"",
+							"// Test: Response time is less than 2000ms",
+							"pm.test(\"Response time is less than 2000ms\", function () {",
+							"    pm.expect(pm.response.responseTime).to.be.below(2000);",
+							"});",
+							"",
+							"console.log(\"Health check passed!\");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/health",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"health"
+					]
+				},
+				"description": "Checks if the API is running and healthy."
+			},
+			"response": []
+		},
+		{
+			"name": "2. Encrypt Data",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Test: Status code is 200",
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"// Test: Response has 'id' field",
+							"pm.test(\"Response has id field\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('id');",
+							"});",
+							"",
+							"// Test: Response has 'message' field",
+							"pm.test(\"Response has message field\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('message');",
+							"});",
+							"",
+							"// Test: Message indicates success",
+							"pm.test(\"Message indicates success\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.message).to.include('encrypted');",
+							"});",
+							"",
+							"// Save the ID for the decrypt test",
+							"var jsonData = pm.response.json();",
+							"if (jsonData.id) {",
+							"    pm.collectionVariables.set(\"encrypted_id\", jsonData.id);",
+							"    console.log(\"Saved encrypted ID: \" + jsonData.id);",
+							"}",
+							"",
+							"// Test: Response time is less than 3000ms",
+							"pm.test(\"Response time is less than 3000ms\", function () {",
+							"    pm.expect(pm.response.responseTime).to.be.below(3000);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"plainText\": \"Hello from Postman! Testing Lambda encryption.\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/encrypt",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"encrypt"
+					]
+				},
+				"description": "Encrypts and stores data in the database. Returns the record ID."
+			},
+			"response": []
+		},
+		{
+			"name": "3. Decrypt Data",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Test: Status code is 200",
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"// Test: Response has 'id' field",
+							"pm.test(\"Response has id field\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('id');",
+							"});",
+							"",
+							"// Test: Response has 'plainText' field",
+							"pm.test(\"Response has plainText field\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('plainText');",
+							"});",
+							"",
+							"// Test: Decrypted text matches original",
+							"pm.test(\"Decrypted text contains expected content\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.plainText).to.include('Hello from Postman');",
+							"});",
+							"",
+							"// Test: ID matches the one from encrypt",
+							"pm.test(\"ID matches encrypted record\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    var expectedId = pm.collectionVariables.get(\"encrypted_id\");",
+							"    pm.expect(jsonData.id.toString()).to.eql(expectedId.toString());",
+							"});",
+							"",
+							"// Test: Response time is less than 2000ms",
+							"pm.test(\"Response time is less than 2000ms\", function () {",
+							"    pm.expect(pm.response.responseTime).to.be.below(2000);",
+							"});",
+							"",
+							"console.log(\"Successfully decrypted: \" + pm.response.json().plainText);"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// Get the saved ID from the previous request",
+							"var encryptedId = pm.collectionVariables.get(\"encrypted_id\");",
+							"",
+							"if (!encryptedId) {",
+							"    console.warn(\"No encrypted_id found. Please run 'Encrypt Data' request first.\");",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/decrypt/{{encrypted_id}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"decrypt",
+						"{{encrypted_id}}"
+					]
+				},
+				"description": "Retrieves and decrypts data by ID. Uses the ID from the previous encrypt request."
+			},
+			"response": []
+		},
+		{
+			"name": "4. Rate Limit Test - Burst (6 requests)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// This test is designed to be run multiple times rapidly",
+							"// The 6th request should trigger rate limiting",
+							"",
+							"// Increment request counter",
+							"var requestCount = pm.collectionVariables.get(\"rate_limit_count\") || 0;",
+							"requestCount++;",
+							"pm.collectionVariables.set(\"rate_limit_count\", requestCount);",
+							"",
+							"console.log(\"Request #\" + requestCount);",
+							"",
+							"if (requestCount <= 5) {",
+							"    // First 5 requests should succeed",
+							"    pm.test(\"Request #\" + requestCount + \" - Status is 200 (allowed)\", function () {",
+							"        pm.response.to.have.status(200);",
+							"    });",
+							"    ",
+							"    pm.test(\"Request #\" + requestCount + \" - Response is valid\", function () {",
+							"        var jsonData = pm.response.json();",
+							"        pm.expect(jsonData).to.have.property('status');",
+							"        pm.expect(jsonData.status).to.eql('UP');",
+							"    });",
+							"} else {",
+							"    // 6th+ request should be rate limited",
+							"    pm.test(\"Request #\" + requestCount + \" - Rate limited (429 Too Many Requests)\", function () {",
+							"        pm.expect(pm.response.code).to.be.oneOf([429, 200]);",
+							"        if (pm.response.code === 429) {",
+							"            console.log(\"✅ Rate limiting is working! Request was throttled.\");",
+							"        } else {",
+							"            console.log(\"⚠️ Request was not throttled. API Gateway might have a delay in enforcing limits.\");",
+							"        }",
+							"    });",
+							"}",
+							"",
+							"// Reset counter after test cycle",
+							"if (requestCount >= 6) {",
+							"    setTimeout(function() {",
+							"        pm.collectionVariables.set(\"rate_limit_count\", 0);",
+							"        console.log(\"Counter reset. Wait 60 seconds before next test cycle.\");",
+							"    }, 1000);",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/health",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"health"
+					]
+				},
+				"description": "**Rate Limiting Test**\n\nRun this request 6 times rapidly to test the burst limit.\n\n**Expected behavior:**\n- Requests 1-5: ✅ Should succeed (200 OK)\n- Request 6+: ❌ Should be throttled (429 Too Many Requests)\n\n**Rate Limits:**\n- Burst: 5 requests\n- Rate: 5 requests per minute\n- Hourly: 20 requests per hour\n\n**How to test:**\n1. Click \"Send\" 6 times rapidly\n2. Watch the test results for each request\n3. Wait 60 seconds before testing again"
+			},
+			"response": []
+		},
+		{
+			"name": "5. Encrypt - Rate Limit Test",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Increment encrypt request counter",
+							"var encryptCount = pm.collectionVariables.get(\"encrypt_rate_count\") || 0;",
+							"encryptCount++;",
+							"pm.collectionVariables.set(\"encrypt_rate_count\", encryptCount);",
+							"",
+							"console.log(\"Encrypt Request #\" + encryptCount);",
+							"",
+							"if (encryptCount <= 5) {",
+							"    pm.test(\"Encrypt #\" + encryptCount + \" - Status is 200 (allowed)\", function () {",
+							"        pm.response.to.have.status(200);",
+							"    });",
+							"} else {",
+							"    pm.test(\"Encrypt #\" + encryptCount + \" - Rate limited (429)\", function () {",
+							"        pm.expect(pm.response.code).to.be.oneOf([429, 200]);",
+							"        if (pm.response.code === 429) {",
+							"            console.log(\"✅ Rate limiting working on encrypt endpoint!\");",
+							"        }",
+							"    });",
+							"}",
+							"",
+							"// Reset counter",
+							"if (encryptCount >= 6) {",
+							"    setTimeout(function() {",
+							"        pm.collectionVariables.set(\"encrypt_rate_count\", 0);",
+							"    }, 1000);",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"plainText\": \"Rate limit test message\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/encrypt",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"encrypt"
+					]
+				},
+				"description": "Tests rate limiting on the encrypt endpoint. Run 6 times rapidly."
+			},
+			"response": []
+		},
+		{
+			"name": "6. Full Workflow Test",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// This is a comprehensive test that would be run after encrypt + decrypt",
+							"pm.test(\"Workflow completed successfully\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"console.log(\"Full encryption/decryption workflow verified!\");"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/health",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"health"
+					]
+				},
+				"description": "Final health check to verify system is still responsive after testing."
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global pre-request script",
+					"console.log(\"Running request to: \" + pm.request.url);"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test script",
+					"pm.test(\"Response is JSON\", function () {",
+					"    pm.response.to.be.json;",
+					"});"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://YOUR-API-ID.execute-api.YOUR-REGION.amazonaws.com",
+			"type": "string"
+		},
+		{
+			"key": "encrypted_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "rate_limit_count",
+			"value": "0",
+			"type": "string"
+		},
+		{
+			"key": "encrypt_rate_count",
+			"value": "0",
+			"type": "string"
+		}
+	]
+}

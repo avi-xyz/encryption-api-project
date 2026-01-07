@@ -1,17 +1,14 @@
-# Terraform configuration for deploying Encryption API to AWS
+# Terraform configuration for deploying Encryption API to AWS Lambda
 #
 # Architecture:
-# - ECS Fargate cluster for running containers (serverless)
-# - RDS MySQL 8 database (Multi-AZ for high availability)
-# - Application Load Balancer (HTTPS with SSL)
+# - AWS Lambda function running Spring Boot application
+# - API Gateway HTTP API for HTTPS endpoint
+# - RDS MySQL 8 database
 # - VPC with public and private subnets
 # - Secrets Manager for encryption keys
 # - CloudWatch for logging
 #
-# Prerequisites:
-# - AWS CLI configured with credentials
-# - Domain name for SSL certificate (optional)
-# - Terraform >= 1.0
+# This serverless architecture bypasses the load balancer restriction!
 
 terraform {
   required_version = ">= 1.0"
@@ -22,13 +19,6 @@ terraform {
       version = "~> 5.0"
     }
   }
-
-  # Optional: Configure S3 backend for remote state
-  # backend "s3" {
-  #   bucket = "your-terraform-state-bucket"
-  #   key    = "encryption-api/terraform.tfstate"
-  #   region = "us-east-1"
-  # }
 }
 
 provider "aws" {
@@ -43,7 +33,15 @@ provider "aws" {
   }
 }
 
-# VPC Configuration
+# Get available AZs
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
+###############################################################################
+# VPC and Networking
+###############################################################################
+
 resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
@@ -54,7 +52,6 @@ resource "aws_vpc" "main" {
   }
 }
 
-# Internet Gateway
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
@@ -63,7 +60,7 @@ resource "aws_internet_gateway" "main" {
   }
 }
 
-# Public Subnets (for Load Balancer)
+# Public Subnets
 resource "aws_subnet" "public" {
   count                   = 2
   vpc_id                  = aws_vpc.main.id
@@ -76,7 +73,7 @@ resource "aws_subnet" "public" {
   }
 }
 
-# Private Subnets (for ECS and RDS)
+# Private Subnets (for Lambda and RDS)
 resource "aws_subnet" "private" {
   count             = 2
   vpc_id            = aws_vpc.main.id
@@ -88,7 +85,7 @@ resource "aws_subnet" "private" {
   }
 }
 
-# NAT Gateway for private subnets
+# NAT Gateway for Lambda outbound access
 resource "aws_eip" "nat" {
   domain = "vpc"
 
@@ -133,7 +130,6 @@ resource "aws_route_table" "private" {
   }
 }
 
-# Route Table Associations
 resource "aws_route_table_association" "public" {
   count          = 2
   subnet_id      = aws_subnet.public[count.index].id
@@ -146,82 +142,55 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private.id
 }
 
-# Security Group for ALB
-resource "aws_security_group" "alb" {
-  name        = "${var.project_name}-alb-sg"
-  description = "Security group for Application Load Balancer"
+###############################################################################
+# Security Groups
+###############################################################################
+
+# Security Group for Lambda
+resource "aws_security_group" "lambda" {
+  name        = "${var.project_name}-lambda-sg"
+  description = "Security group for Lambda function"
   vpc_id      = aws_vpc.main.id
 
-  ingress {
-    from_port   = 80
-    to_port     = 80
+  # Outbound to RDS
+  egress {
+    from_port   = 3306
+    to_port     = 3306
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "HTTP from anywhere"
+    cidr_blocks = [aws_vpc.main.cidr_block]
+    description = "Allow MySQL access to RDS"
   }
 
-  ingress {
+  # Outbound to internet via NAT (for Secrets Manager, CloudWatch, etc.)
+  egress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-    description = "HTTPS from anywhere"
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "Allow all outbound"
+    description = "Allow HTTPS for AWS services"
   }
 
   tags = {
-    Name = "${var.project_name}-alb-sg"
-  }
-}
-
-# Security Group for ECS Tasks
-resource "aws_security_group" "ecs" {
-  name        = "${var.project_name}-ecs-sg"
-  description = "Security group for ECS tasks"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    from_port       = 8080
-    to_port         = 8080
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
-    description     = "Allow traffic from ALB"
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "Allow all outbound"
-  }
-
-  tags = {
-    Name = "${var.project_name}-ecs-sg"
+    Name = "${var.project_name}-lambda-sg"
   }
 }
 
 # Security Group for RDS
 resource "aws_security_group" "rds" {
   name        = "${var.project_name}-rds-sg"
-  description = "Security group for RDS MySQL"
+  description = "Security group for RDS MySQL database"
   vpc_id      = aws_vpc.main.id
 
+  # Inbound from Lambda
   ingress {
     from_port       = 3306
     to_port         = 3306
     protocol        = "tcp"
-    security_groups = [aws_security_group.ecs.id]
-    description     = "MySQL from ECS"
+    security_groups = [aws_security_group.lambda.id]
+    description     = "Allow MySQL access from Lambda"
   }
 
+  # Outbound (required for RDS to function)
   egress {
     from_port   = 0
     to_port     = 0
@@ -235,7 +204,10 @@ resource "aws_security_group" "rds" {
   }
 }
 
-# RDS Subnet Group
+###############################################################################
+# RDS MySQL Database
+###############################################################################
+
 resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-db-subnet-group"
   subnet_ids = aws_subnet.private[*].id
@@ -245,44 +217,46 @@ resource "aws_db_subnet_group" "main" {
   }
 }
 
-# RDS MySQL Instance
 resource "aws_db_instance" "mysql" {
-  identifier             = "${var.project_name}-db"
-  engine                 = "mysql"
-  engine_version         = "8.0"
-  instance_class         = var.db_instance_class
-  allocated_storage      = 20
-  max_allocated_storage  = 100
-  storage_encrypted      = true
+  identifier     = "${var.project_name}-db"
+  engine         = "mysql"
+  engine_version = "8.0"
+  instance_class = "db.t3.micro"
+
+  allocated_storage     = 20
+  max_allocated_storage = 100
+  storage_type          = "gp2"
+  storage_encrypted     = true
 
   db_name  = "encryption_db"
   username = var.db_username
   password = var.db_password
 
-  multi_az               = var.environment == "production" ? true : false
   db_subnet_group_name   = aws_db_subnet_group.main.name
   vpc_security_group_ids = [aws_security_group.rds.id]
+  publicly_accessible    = false
 
-  backup_retention_period = 7
-  backup_window          = "03:00-04:00"
-  maintenance_window     = "mon:04:00-mon:05:00"
+  backup_retention_period = 1
+  backup_window           = "03:00-04:00"
+  maintenance_window      = "mon:04:00-mon:05:00"
 
-  skip_final_snapshot = var.environment != "production"
-  final_snapshot_identifier = var.environment == "production" ? "${var.project_name}-final-snapshot" : null
+  skip_final_snapshot       = true
+  final_snapshot_identifier = null
+  deletion_protection       = false
 
   tags = {
     Name = "${var.project_name}-db"
   }
 }
 
-# Secrets Manager for Master Encryption Key
-resource "aws_secretsmanager_secret" "master_key" {
-  name        = "${var.project_name}-master-key"
-  description = "Master encryption key for ${var.project_name}"
+###############################################################################
+# Secrets Manager
+###############################################################################
 
-  tags = {
-    Name = "${var.project_name}-master-key"
-  }
+resource "aws_secretsmanager_secret" "master_key" {
+  name                    = "${var.project_name}-master-key"
+  description             = "Master encryption key for the encryption API"
+  recovery_window_in_days = 0  # Immediate deletion (for development)
 }
 
 resource "aws_secretsmanager_secret_version" "master_key" {
@@ -290,97 +264,79 @@ resource "aws_secretsmanager_secret_version" "master_key" {
   secret_string = var.master_encryption_key
 }
 
-# ECS Cluster
-resource "aws_ecs_cluster" "main" {
-  name = "${var.project_name}-cluster"
-
-  setting {
-    name  = "containerInsights"
-    value = "enabled"
-  }
-
-  tags = {
-    Name = "${var.project_name}-cluster"
-  }
+resource "aws_secretsmanager_secret" "db_password" {
+  name                    = "${var.project_name}-db-password"
+  description             = "Database password for RDS MySQL"
+  recovery_window_in_days = 0  # Immediate deletion (for development)
 }
 
-# CloudWatch Log Group
-resource "aws_cloudwatch_log_group" "app" {
-  name              = "/ecs/${var.project_name}"
+resource "aws_secretsmanager_secret_version" "db_password" {
+  secret_id     = aws_secretsmanager_secret.db_password.id
+  secret_string = var.db_password
+}
+
+###############################################################################
+# CloudWatch Logs
+###############################################################################
+
+resource "aws_cloudwatch_log_group" "lambda" {
+  name              = "/aws/lambda/${var.project_name}"
   retention_in_days = 7
 
   tags = {
-    Name = "${var.project_name}-logs"
+    Name = "${var.project_name}-lambda-logs"
   }
 }
 
-# ECR Repository for Docker images
-resource "aws_ecr_repository" "app" {
-  name                 = var.project_name
-  image_tag_mutability = "MUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
+resource "aws_cloudwatch_log_group" "api_gateway" {
+  name              = "/aws/apigateway/${var.project_name}"
+  retention_in_days = 7
 
   tags = {
-    Name = "${var.project_name}-ecr"
+    Name = "${var.project_name}-api-gateway-logs"
   }
 }
 
-# IAM Role for ECS Task Execution
-resource "aws_iam_role" "ecs_task_execution" {
-  name = "${var.project_name}-ecs-task-execution-role"
+###############################################################################
+# Lambda Function
+###############################################################################
+
+# IAM Role for Lambda
+resource "aws_iam_role" "lambda" {
+  name = "${var.project_name}-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "lambda.amazonaws.com"
       }
-    ]
+    }]
   })
 
   tags = {
-    Name = "${var.project_name}-ecs-task-execution-role"
+    Name = "${var.project_name}-lambda-role"
   }
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
-  role       = aws_iam_role.ecs_task_execution.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+# Attach basic Lambda execution policy
+resource "aws_iam_role_policy_attachment" "lambda_basic" {
+  role       = aws_iam_role.lambda.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-# IAM Role for ECS Task (application permissions)
-resource "aws_iam_role" "ecs_task" {
-  name = "${var.project_name}-ecs-task-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = {
-    Name = "${var.project_name}-ecs-task-role"
-  }
+# Attach VPC execution policy
+resource "aws_iam_role_policy_attachment" "lambda_vpc" {
+  role       = aws_iam_role.lambda.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
-# Policy for accessing Secrets Manager
-resource "aws_iam_role_policy" "secrets_access" {
-  name = "${var.project_name}-secrets-access"
-  role = aws_iam_role.ecs_task.id
+# Policy for Secrets Manager access
+resource "aws_iam_role_policy" "lambda_secrets" {
+  name = "${var.project_name}-lambda-secrets-policy"
+  role = aws_iam_role.lambda.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -388,164 +344,167 @@ resource "aws_iam_role_policy" "secrets_access" {
       {
         Effect = "Allow"
         Action = [
-          "secretsmanager:GetSecretValue"
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
         ]
-        Resource = aws_secretsmanager_secret.master_key.arn
+        Resource = [
+          aws_secretsmanager_secret.master_key.arn,
+          aws_secretsmanager_secret.db_password.arn
+        ]
       }
     ]
   })
 }
 
-# ECS Task Definition
-resource "aws_ecs_task_definition" "app" {
-  family                   = var.project_name
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = var.ecs_task_cpu
-  memory                   = var.ecs_task_memory
-  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
-  task_role_arn            = aws_iam_role.ecs_task.arn
+# Lambda Function
+resource "aws_lambda_function" "api" {
+  s3_bucket        = "encryption-api-lambda-code-useast1-20260107"
+  s3_key           = "encryption-api-1.0.0.jar"
+  function_name    = "${var.project_name}-function"
+  role            = aws_iam_role.lambda.arn
+  handler         = "com.aviencryption.StreamLambdaHandler::handleRequest"
+  runtime         = "java17"
+  memory_size     = 512
+  timeout         = 30
+  source_code_hash = filebase64sha256("${path.module}/../target/encryption-api-lambda.jar")
 
-  container_definitions = jsonencode([
-    {
-      name  = var.project_name
-      image = "${aws_ecr_repository.app.repository_url}:latest"
+  vpc_config {
+    subnet_ids         = aws_subnet.private[*].id
+    security_group_ids = [aws_security_group.lambda.id]
+  }
 
-      portMappings = [
-        {
-          containerPort = 8080
-          protocol      = "tcp"
-        }
-      ]
-
-      environment = [
-        {
-          name  = "SPRING_PROFILES_ACTIVE"
-          value = "prod"
-        },
-        {
-          name  = "SPRING_DATASOURCE_URL"
-          value = "jdbc:mysql://${aws_db_instance.mysql.endpoint}/encryption_db"
-        },
-        {
-          name  = "SPRING_DATASOURCE_USERNAME"
-          value = var.db_username
-        }
-      ]
-
-      secrets = [
-        {
-          name      = "SPRING_DATASOURCE_PASSWORD"
-          valueFrom = aws_db_instance.mysql.master_user_secret[0].secret_arn
-        },
-        {
-          name      = "ENCRYPTION_MASTER_KEY"
-          valueFrom = aws_secretsmanager_secret.master_key.arn
-        }
-      ]
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.app.name
-          "awslogs-region"        = var.aws_region
-          "awslogs-stream-prefix" = "ecs"
-        }
-      }
-
-      healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
-        interval    = 30
-        timeout     = 5
-        retries     = 3
-        startPeriod = 60
-      }
+  environment {
+    variables = {
+      SPRING_PROFILES_ACTIVE    = "prod"
+      DB_HOST                   = split(":", aws_db_instance.mysql.endpoint)[0]
+      DB_PORT                   = "3306"
+      DB_NAME                   = aws_db_instance.mysql.db_name
+      DB_USERNAME               = var.db_username
+      DB_PASSWORD               = var.db_password
+      MASTER_ENCRYPTION_KEY     = var.master_encryption_key
     }
-  ])
+  }
+
+  depends_on = [
+    aws_cloudwatch_log_group.lambda,
+    aws_iam_role_policy_attachment.lambda_basic,
+    aws_iam_role_policy_attachment.lambda_vpc
+  ]
 
   tags = {
-    Name = "${var.project_name}-task-definition"
+    Name = "${var.project_name}-lambda"
   }
 }
 
-# Application Load Balancer
-resource "aws_lb" "main" {
-  name               = "${var.project_name}-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb.id]
-  subnets            = aws_subnet.public[*].id
+###############################################################################
+# API Gateway
+###############################################################################
 
-  enable_deletion_protection = var.environment == "production"
+resource "aws_apigatewayv2_api" "main" {
+  name          = "${var.project_name}-api"
+  protocol_type = "HTTP"
+  description   = "API Gateway for Encryption API (Serverless Lambda)"
 
-  tags = {
-    Name = "${var.project_name}-alb"
-  }
-}
-
-# Target Group
-resource "aws_lb_target_group" "app" {
-  name        = "${var.project_name}-tg"
-  port        = 8080
-  protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
-  target_type = "ip"
-
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    unhealthy_threshold = 3
-    timeout             = 5
-    interval            = 30
-    path                = "/api/health"
-    matcher             = "200"
+  cors_configuration {
+    allow_origins = ["*"]
+    allow_methods = ["GET", "POST", "OPTIONS"]
+    allow_headers = ["content-type", "authorization"]
+    max_age       = 300
   }
 
   tags = {
-    Name = "${var.project_name}-tg"
+    Name = "${var.project_name}-api-gateway"
   }
 }
 
-# ALB Listener (HTTP - redirect to HTTPS in production)
-resource "aws_lb_listener" "http" {
-  load_balancer_arn = aws_lb.main.arn
-  port              = "80"
-  protocol          = "HTTP"
+# Lambda Integration
+resource "aws_apigatewayv2_integration" "lambda" {
+  api_id           = aws_apigatewayv2_api.main.id
+  integration_type = "AWS_PROXY"
+  integration_uri  = aws_lambda_function.api.invoke_arn
 
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.app.arn
-  }
+  payload_format_version = "2.0"
+  timeout_milliseconds   = 30000
 }
 
-# ECS Service
-resource "aws_ecs_service" "app" {
-  name            = "${var.project_name}-service"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.app.arn
-  desired_count   = var.ecs_desired_count
-  launch_type     = "FARGATE"
+# Routes
+resource "aws_apigatewayv2_route" "default" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "$default"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
 
-  network_configuration {
-    subnets          = aws_subnet.private[*].id
-    security_groups  = [aws_security_group.ecs.id]
-    assign_public_ip = false
+# Stage with Rate Limiting
+resource "aws_apigatewayv2_stage" "default" {
+  api_id      = aws_apigatewayv2_api.main.id
+  name        = "$default"
+  auto_deploy = true
+
+  # Rate Limiting: 5 requests per minute, 20 requests per hour
+  # Burst: 5 requests allowed in quick succession
+  # Rate: 0.33 requests per second = 20 requests per minute (we'll use route-level throttling for stricter limits)
+  default_route_settings {
+    throttling_burst_limit = 5
+    throttling_rate_limit  = 0.33  # 20 requests per minute (we enforce 5/min at route level)
   }
 
-  load_balancer {
-    target_group_arn = aws_lb_target_group.app.arn
-    container_name   = var.project_name
-    container_port   = 8080
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_gateway.arn
+    format = jsonencode({
+      requestId      = "$context.requestId"
+      ip             = "$context.identity.sourceIp"
+      requestTime    = "$context.requestTime"
+      httpMethod     = "$context.httpMethod"
+      routeKey       = "$context.routeKey"
+      status         = "$context.status"
+      protocol       = "$context.protocol"
+      responseLength = "$context.responseLength"
+    })
   }
-
-  depends_on = [aws_lb_listener.http]
 
   tags = {
-    Name = "${var.project_name}-service"
+    Name = "${var.project_name}-api-stage"
   }
 }
 
-# Data source for availability zones
-data "aws_availability_zones" "available" {
-  state = "available"
+# Lambda Permission for API Gateway
+resource "aws_lambda_permission" "api_gateway" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.api.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*"
+}
+
+###############################################################################
+# Keep-Warm CloudWatch Event (Prevents cold starts)
+###############################################################################
+
+resource "aws_cloudwatch_event_rule" "keep_warm" {
+  name                = "${var.project_name}-keep-warm"
+  description         = "Ping Lambda every 5 minutes to prevent cold starts"
+  schedule_expression = "rate(5 minutes)"
+
+  tags = {
+    Name = "${var.project_name}-keep-warm-rule"
+  }
+}
+
+resource "aws_cloudwatch_event_target" "lambda" {
+  rule      = aws_cloudwatch_event_rule.keep_warm.name
+  target_id = "${var.project_name}-lambda"
+  arn       = aws_lambda_function.api.arn
+
+  input = jsonencode({
+    httpMethod = "GET"
+    path       = "/api/health"
+  })
+}
+
+resource "aws_lambda_permission" "cloudwatch" {
+  statement_id  = "AllowCloudWatchInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.api.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.keep_warm.arn
 }

@@ -3,21 +3,30 @@
 
 spring:
   datasource:
-    # These will be injected from environment variables in ECS
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    # These will be injected from environment variables in Lambda
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:encryption_db}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+
+    # HikariCP Connection Pool Settings (optimized for Lambda)
+    hikari:
+      maximum-pool-size: 2          # Low for Lambda (Lambda reuses connections)
+      minimum-idle: 0                # Allow connections to close when idle
+      connection-timeout: 10000      # 10 seconds
+      idle-timeout: 60000            # 1 minute - close idle connections
+      max-lifetime: 300000           # 5 minutes - recycle connections
+      connection-test-query: SELECT 1
 
   jpa:
     show-sql: false
     hibernate:
-      ddl-auto: validate  # Don't auto-create tables in production
+      ddl-auto: update  # Auto-create tables for development deployment
 
 # Encryption Configuration
-# Master key loaded from AWS Secrets Manager
+# Master key loaded from environment variable
 encryption:
-  master-key: ${ENCRYPTION_MASTER_KEY}
+  master-key: ${MASTER_ENCRYPTION_KEY}
 
 # Production logging
 logging:

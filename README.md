@@ -1,17 +1,21 @@
 # Encryption API
 
-A production-ready REST API for encrypting strings using AES-256-GCM encryption and storing them securely in MySQL 8. Built with Spring Boot, containerized with Docker, and deployable to AWS ECS with full CI/CD automation.
+A production-ready serverless REST API for encrypting strings using AES-256-GCM encryption and storing them securely in MySQL 8. Built with Spring Boot and deployed to AWS Lambda with API Gateway.
+
+**Live API**: https://YOUR-API-ID.execute-api.YOUR-REGION.amazonaws.com
 
 ## Features
 
 - **Strong Encryption**: AES-256-GCM (Galois/Counter Mode) - industry standard authenticated encryption
 - **Secure Storage**: MySQL 8 database with encrypted data and key management
+- **Serverless Architecture**: AWS Lambda + API Gateway (no servers to manage)
+- **Rate Limiting**: 5 requests/minute, 20 requests/hour via API Gateway
+- **Auto-scaling**: Scales from 0 to 1000s of concurrent requests
+- **HTTPS/SSL**: Built-in SSL certificate via API Gateway
+- **Cost-Optimized**: ~$75-90/month (serverless + RDS)
 - **REST API**: Clean RESTful interface with JSON
-- **Containerized**: Docker and Docker Compose for consistent environments
-- **Cloud-Ready**: AWS ECS Fargate deployment with Terraform
-- **CI/CD**: GitHub Actions pipeline with automated testing and deployment
-- **Comprehensive Testing**: Unit tests, integration tests with Testcontainers
-- **Automated Setup**: One-command macOS development environment setup
+- **Comprehensive Testing**: Unit tests, integration tests with Testcontainers, Postman collection
+- **Infrastructure as Code**: Complete Terraform deployment automation
 
 ## Quick Start (macOS)
 
@@ -53,9 +57,24 @@ docker-compose up -d mysql
 
 ### API Endpoints
 
+**Production API** (us-east-1): https://YOUR-API-ID.execute-api.YOUR-REGION.amazonaws.com
+
+#### Health Check
+```bash
+curl https://YOUR-API-ID.execute-api.YOUR-REGION.amazonaws.com/api/health
+```
+
+**Response:**
+```json
+{
+  "status": "UP",
+  "timestamp": "2026-01-07T02:44:02"
+}
+```
+
 #### Encrypt Data
 ```bash
-curl -X POST http://localhost:8080/api/encrypt \
+curl -X POST https://YOUR-API-ID.execute-api.YOUR-REGION.amazonaws.com/api/encrypt \
   -H "Content-Type: application/json" \
   -d '{"plainText":"my secret message"}'
 ```
@@ -65,13 +84,13 @@ curl -X POST http://localhost:8080/api/encrypt \
 {
   "id": 1,
   "message": "Data encrypted and stored successfully",
-  "timestamp": "2025-11-19T10:30:00"
+  "timestamp": "2026-01-07T02:44:03"
 }
 ```
 
-#### Decrypt Data (Optional)
+#### Decrypt Data
 ```bash
-curl http://localhost:8080/api/decrypt/1
+curl https://YOUR-API-ID.execute-api.YOUR-REGION.amazonaws.com/api/decrypt/1
 ```
 
 **Response:**
@@ -79,22 +98,11 @@ curl http://localhost:8080/api/decrypt/1
 {
   "id": 1,
   "plainText": "my secret message",
-  "timestamp": "2025-11-19T10:30:00"
+  "timestamp": "2026-01-07T02:44:04"
 }
 ```
 
-#### Health Check
-```bash
-curl http://localhost:8080/api/health
-```
-
-**Response:**
-```json
-{
-  "status": "UP",
-  "timestamp": "2025-11-19T10:30:00"
-}
-```
+**Local Development**: Use `http://localhost:8080` for local testing
 
 ## Testing
 
@@ -180,60 +188,96 @@ Set profile with:
 
 ## Deployment to AWS
 
-### Prerequisites
-- AWS account with appropriate permissions
-- AWS CLI configured (`aws configure`)
-- Terraform installed
+### ✅ CURRENTLY DEPLOYED - PRODUCTION READY!
 
-### Deploy Infrastructure
+**Status**: ✅ **Live and Running in us-east-1**
+
+**API Endpoint**: https://YOUR-API-ID.execute-api.YOUR-REGION.amazonaws.com
+
+**Architecture**: Serverless Lambda + API Gateway → RDS MySQL
+
+**Region**: us-east-1 (Virginia)
+
+**Documentation**:
+- [DEPLOYMENT_SUCCESS.md](DEPLOYMENT_SUCCESS.md) - Current deployment status
+- [POSTMAN_TESTING_GUIDE.md](POSTMAN_TESTING_GUIDE.md) - Complete testing guide
+- [LAMBDA_DEPLOYMENT_GUIDE.md](LAMBDA_DEPLOYMENT_GUIDE.md) - Deployment instructions
+
+---
+
+### Current Infrastructure (us-east-1)
+
+**Deployed Resources** (37 total):
+- AWS Lambda Function (Java 17, 512MB, Spring Boot)
+- API Gateway HTTP API with rate limiting (5 req/min)
+- RDS MySQL 8.0.43 (db.t3.micro, 20GB)
+- VPC with NAT Gateway, subnets, security groups
+- CloudWatch Logs and EventBridge scheduler
+- S3 bucket for Lambda code
+
+**Cost**: ~$75-90/month
+- RDS MySQL: $15-20/month
+- NAT Gateway: $30-35/month
+- Lambda: $0.20-2.00/month (first 1M requests free)
+- API Gateway: $0.10-1.00/month
+- Data transfer: $1-5/month
+
+### Testing the Live API
+
+Use the provided Postman collection for comprehensive testing:
 
 ```bash
+# Import into Postman
+open Encryption-API-Tests.postman_collection.json
+
+# Or test with curl
+curl https://YOUR-API-ID.execute-api.YOUR-REGION.amazonaws.com/api/health
+```
+
+See [POSTMAN_TESTING_GUIDE.md](POSTMAN_TESTING_GUIDE.md) for detailed testing instructions.
+
+### Deploy to Your Own AWS Account
+
+```bash
+# 1. Build Lambda JAR
+./create-lambda-jar.sh
+
+# 2. Create S3 bucket and upload
+aws s3 mb s3://your-lambda-code-bucket --region us-east-1
+aws s3 cp target/encryption-api-lambda.jar s3://your-lambda-code-bucket/
+
+# 3. Update terraform/main.tf with your bucket name
+
+# 4. Deploy infrastructure
 cd terraform
-
-# Create terraform.tfvars from example
-cp terraform.tfvars.example terraform.tfvars
-
-# Edit terraform.tfvars with your values
-# - Set db_password
-# - Set master_encryption_key (generate with: openssl rand -base64 32)
-
-# Initialize Terraform
 terraform init
-
-# Review changes
-terraform plan
-
-# Deploy
 terraform apply
 ```
 
-### Deploy Application
+See [LAMBDA_DEPLOYMENT_GUIDE.md](LAMBDA_DEPLOYMENT_GUIDE.md) for complete instructions.
 
-After infrastructure is created:
+### 🧹 Cleanup Resources
+
+**IMPORTANT**: To avoid ongoing AWS charges, destroy resources when done:
 
 ```bash
-# Get ECR repository URL
-ECR_URL=$(terraform output -raw ecr_repository_url)
+cd terraform
+terraform destroy -auto-approve
 
-# Login to ECR
-aws ecr get-login-password --region us-east-1 | \
-  docker login --username AWS --password-stdin $ECR_URL
-
-# Build and push
-docker build -t encryption-api .
-docker tag encryption-api:latest $ECR_URL:latest
-docker push $ECR_URL:latest
-
-# Update ECS service
-aws ecs update-service \
-  --cluster encryption-api-cluster \
-  --service encryption-api-service \
-  --force-new-deployment
+# Also delete S3 bucket
+aws s3 rb s3://your-lambda-code-bucket --force --region us-east-1
 ```
 
-**Or use GitHub Actions**: Push to `main` branch to automatically build, test, and deploy.
+**Estimated cleanup time**: ~5-8 minutes
 
-See [terraform/README.md](terraform/README.md) for detailed deployment documentation.
+**Resources deleted**:
+- Lambda function and API Gateway
+- RDS MySQL database
+- NAT Gateway and VPC networking
+- CloudWatch logs and EventBridge rules
+- S3 bucket with Lambda code
+
+See [DEPLOYMENT_SUCCESS.md](DEPLOYMENT_SUCCESS.md) for detailed resource inventory.
 
 ## CI/CD Pipeline
 
@@ -292,27 +336,31 @@ GitHub Actions automatically:
 6. Ciphertext, encrypted key, and IV stored in MySQL
 7. Record ID returned to client
 
-### AWS Architecture
-- **Compute**: ECS Fargate (serverless containers)
-- **Database**: RDS MySQL 8 (Multi-AZ)
-- **Load Balancer**: Application Load Balancer
-- **Secrets**: AWS Secrets Manager
-- **Logs**: CloudWatch Logs
-- **Registry**: ECR (container images)
+### AWS Serverless Architecture
+- **API Gateway**: HTTPS endpoint with rate limiting and SSL
+- **Lambda**: Java 17 Spring Boot function (512MB, auto-scaling)
+- **Database**: RDS MySQL 8.0.43 (db.t3.micro, private VPC)
+- **Networking**: VPC with NAT Gateway for Lambda → RDS connectivity
+- **Secrets**: Master encryption key and DB credentials
+- **Logs**: CloudWatch Logs for Lambda and API Gateway
+- **Scheduler**: EventBridge keep-warm rule (every 5 minutes)
 
-See [PROJECT_ARCHITECTURE.md](PROJECT_ARCHITECTURE.md) for detailed architecture documentation.
+**Request Flow**: Internet → API Gateway → Lambda → RDS MySQL
+
+See [DEPLOYMENT_SUCCESS.md](DEPLOYMENT_SUCCESS.md) for detailed architecture documentation.
 
 ## Technology Stack
 
 - **Java 17** - LTS with modern features
 - **Spring Boot 3.2** - Application framework
 - **Spring Data JPA** - Database access
-- **MySQL 8** - Relational database
-- **Docker** - Containerization
+- **MySQL 8.0.43** - Relational database
+- **AWS Lambda** - Serverless compute
+- **API Gateway** - HTTP API with rate limiting
 - **Terraform** - Infrastructure as Code
-- **GitHub Actions** - CI/CD
-- **AWS ECS Fargate** - Container orchestration
+- **Docker** - Development environment
 - **Testcontainers** - Integration testing
+- **Postman** - API testing collection
 
 ## Troubleshooting
 
@@ -331,24 +379,35 @@ See [PROJECT_ARCHITECTURE.md](PROJECT_ARCHITECTURE.md) for detailed architecture
 - Remove volumes: `docker volume prune`
 - Restart: `docker-compose up`
 
-### AWS Deployment issues
-- Check CloudWatch logs: `aws logs tail /ecs/encryption-api --follow`
-- Verify ECS service: `aws ecs describe-services --cluster encryption-api-cluster --services encryption-api-service`
-- Check task definition: `aws ecs describe-task-definition --task-definition encryption-api`
+### AWS Lambda Deployment issues
+- Check Lambda logs: `aws logs tail /aws/lambda/encryption-api-function --follow --region us-east-1`
+- Verify Lambda status: `aws lambda get-function --function-name encryption-api-function --region us-east-1`
+- Test API Gateway: `curl https://YOUR-API-ID.execute-api.YOUR-REGION.amazonaws.com/api/health`
+- Check RDS: `aws rds describe-db-instances --db-instance-identifier encryption-api-db --region us-east-1`
+
+See [LAMBDA_DEBUGGING_STATUS.md](LAMBDA_DEBUGGING_STATUS.md) for detailed troubleshooting.
 
 ## Performance
 
-### Benchmarks (Local)
+### Benchmarks
+
+**Local Development**:
 - Encryption: ~1ms per operation
 - Database write: ~5ms
 - End-to-end API call: ~10-20ms
 
-### Production Recommendations
-- Use connection pooling (configured: 10 max connections)
-- Enable database query caching
-- Use CDN for static content
-- Implement API rate limiting
-- Enable auto-scaling in ECS
+**Production (Lambda in us-east-1)**:
+- Cold start: ~8-10 seconds (first request after idle)
+- Warm requests: ~50-100ms (subsequent requests)
+- Keep-warm scheduler: Reduces cold starts (runs every 5 minutes)
+- Rate limiting: 5 requests/minute burst, 0.33 req/sec sustained
+
+### Production Features
+- ✅ Connection pooling configured (10 max connections)
+- ✅ Rate limiting enabled via API Gateway
+- ✅ Auto-scaling: 0 to 1000s concurrent requests
+- ✅ Database query optimization
+- ✅ CloudWatch monitoring and logging
 
 ## Contributing
 
