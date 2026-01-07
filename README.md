@@ -238,23 +238,37 @@ See [POSTMAN_TESTING_GUIDE.md](POSTMAN_TESTING_GUIDE.md) for detailed testing in
 
 ### Deploy to Your Own AWS Account
 
+**📖 Complete Step-by-Step Guide**: See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+
+**Quick Start:**
+
 ```bash
-# 1. Build Lambda JAR
+# 1. Generate secure credentials
+openssl rand -base64 24  # Database password
+openssl rand -base64 32  # Master encryption key
+
+# 2. Create terraform/terraform.tfvars (copy from terraform.tfvars.example)
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your credentials and S3 bucket name
+
+# 3. Build Lambda JAR
+cd ..
 ./create-lambda-jar.sh
 
-# 2. Create S3 bucket and upload
-aws s3 mb s3://your-lambda-code-bucket --region us-east-1
-aws s3 cp target/encryption-api-lambda.jar s3://your-lambda-code-bucket/
+# 4. Create S3 bucket and upload
+aws s3 mb s3://your-unique-bucket-name --region us-east-1
+aws s3 cp target/encryption-api-lambda.jar s3://your-unique-bucket-name/encryption-api-1.0.0.jar
 
-# 3. Update terraform/main.tf with your bucket name
-
-# 4. Deploy infrastructure
+# 5. Deploy infrastructure
 cd terraform
 terraform init
 terraform apply
 ```
 
-See [LAMBDA_DEPLOYMENT_GUIDE.md](LAMBDA_DEPLOYMENT_GUIDE.md) for complete instructions.
+**Deployment time**: 15-20 minutes | **Monthly cost**: ~$46-59 (with Free Tier: ~$30-35)
+
+See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for detailed instructions, troubleshooting, and production recommendations.
 
 ### 🧹 Cleanup Resources
 
