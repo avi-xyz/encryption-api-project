@@ -261,7 +261,7 @@ curl https://YOUR-API-ID.execute-api.YOUR-REGION.amazonaws.com/api/health
 
 **Resources** (37 total):
 - ✅ Lambda Function (encryption-api-function)
-- ✅ API Gateway (3tyukwdl69)
+- ✅ API Gateway (YOUR-API-ID)
 - ✅ RDS MySQL 8.0.43 (encryption-api-db)
 - ✅ VPC with NAT Gateway, subnets, security groups
 - ✅ CloudWatch Logs and EventBridge scheduler
