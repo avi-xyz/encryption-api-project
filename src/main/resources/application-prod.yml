@@ -21,12 +21,26 @@ spring:
   jpa:
     show-sql: false
     hibernate:
-      ddl-auto: update  # Auto-create tables for development deployment
+      ddl-auto: none  # Use Flyway for all schema management in production
+
+  flyway:
+    baseline-on-migrate: true  # Initialize Flyway history table if database has existing tables
+    enabled: true
+    validate-on-migrate: false  # Skip validation to avoid failed migration errors
+    clean-disabled: true  # Prevent accidental data loss
+
+# AWS Cognito Configuration
+# Values injected from Terraform outputs via environment variables
+aws:
+  cognito:
+    region: ${AWS_REGION:us-east-1}
+    user-pool-id: ${COGNITO_USER_POOL_ID}
+    client-id: ${COGNITO_CLIENT_ID}
 
 # Encryption Configuration
-# Master key loaded from environment variable
+# Master key loaded from AWS Secrets Manager via environment variable
 encryption:
-  master-key: ${MASTER_ENCRYPTION_KEY}
+  master-key: ${ENCRYPTION_MASTER_KEY}
 
 # Production logging
 logging:
@@ -34,3 +48,4 @@ logging:
     com.aviencryption: INFO
     org.springframework.web: WARN
     org.hibernate: WARN
+    org.springframework.security: WARN

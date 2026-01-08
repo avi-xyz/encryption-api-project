@@ -1,0 +1,120 @@
+name: API Access Request
+description: Request access credentials for the Encryption API
+title: "[ACCESS REQUEST] "
+labels: ["api-access", "pending-review"]
+assignees:
+  - avinash
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Request API Access
+
+        Thank you for your interest in using the Encryption API! Please fill out the information below to request access credentials.
+
+        **What you'll receive:**
+        - Username (your email address)
+        - Temporary password (you'll set a permanent one on first login)
+        - Access to the API documentation
+
+        **Response Time:** Typically within 24-48 hours
+
+  - type: input
+    id: email
+    attributes:
+      label: Email Address
+      description: This will be your username for API authentication
+      placeholder: user@example.com
+    validations:
+      required: true
+
+  - type: input
+    id: full_name
+    attributes:
+      label: Full Name
+      description: Your full name for account identification
+      placeholder: John Doe
+    validations:
+      required: true
+
+  - type: input
+    id: organization
+    attributes:
+      label: Organization/Company
+      description: Your organization or company name
+      placeholder: ACME Corporation
+    validations:
+      required: false
+
+  - type: dropdown
+    id: use_case
+    attributes:
+      label: Primary Use Case
+      description: What will you primarily use this API for?
+      options:
+        - Development/Testing
+        - Production Application
+        - Research/Academic
+        - Personal Project
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Project Description
+      description: Brief description of how you plan to use the API (helps us understand usage patterns)
+      placeholder: I'm building a mobile app that needs to securely store user payment information...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: expected_volume
+    attributes:
+      label: Expected API Usage Volume
+      description: Estimated number of API calls per day
+      options:
+        - Low (< 100 requests/day)
+        - Medium (100-1000 requests/day)
+        - High (1000-10000 requests/day)
+        - Very High (> 10000 requests/day)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Terms and Conditions
+      description: By submitting this request, you agree to the following
+      options:
+        - label: I will use this API for legitimate purposes only
+          required: true
+        - label: I understand that misuse may result in access revocation
+          required: true
+        - label: I have read the API documentation
+          required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+
+        ### Next Steps
+
+        Once your request is approved, you will receive:
+
+        1. **Username**: The email address you provided
+        2. **Temporary Password**: Sent to your email (or posted in this issue)
+        3. **API Documentation**: Link to full documentation with code examples
+
+        You can then authenticate using:
+
+        ```bash
+        curl -X POST https://3tyukwdl69.execute-api.us-east-1.amazonaws.com/api/auth/login \
+          -H "Content-Type: application/json" \
+          -d '{"username":"your-email@example.com","password":"your-temp-password"}'
+        ```
+
+        **Support:** If you have questions, comment on this issue or check the [API Documentation](../API_DOCUMENTATION.md)

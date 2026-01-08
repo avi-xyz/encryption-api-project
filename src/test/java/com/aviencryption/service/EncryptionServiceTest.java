@@ -50,8 +50,10 @@ class EncryptionServiceTest {
     void testEncryptAndStore_Success() {
         // Given
         String plainText = "This is a secret message";
+        String userId = "test-user-123";
         EncryptedData mockSavedData = EncryptedData.builder()
                 .id(1L)
+                .userId(userId)
                 .cipherText(new byte[32])
                 .encryptionKey(new byte[64])
                 .iv(new byte[12])
@@ -60,7 +62,7 @@ class EncryptionServiceTest {
         when(repository.save(any(EncryptedData.class))).thenReturn(mockSavedData);
 
         // When
-        Long resultId = encryptionService.encryptAndStore(plainText);
+        Long resultId = encryptionService.encryptAndStore(plainText, userId);
 
         // Then
         assertNotNull(resultId);
@@ -75,17 +77,20 @@ class EncryptionServiceTest {
         assertNotNull(savedData.getEncryptionKey());
         assertNotNull(savedData.getIv());
         assertEquals(12, savedData.getIv().length); // GCM IV length
+        assertEquals(userId, savedData.getUserId());
     }
 
     @Test
     void testEncryptAndDecrypt_DataIntegrity() {
         // Given
         String originalText = "Super secret data 123!@#";
+        String userId = "test-user-123";
 
         // Mock repository behavior for save
         when(repository.save(any(EncryptedData.class))).thenAnswer(invocation -> {
             EncryptedData data = invocation.getArgument(0);
             data.setId(1L);
+            data.setUserId(userId);
             return data;
         });
 
@@ -97,8 +102,8 @@ class EncryptionServiceTest {
         });
 
         // When
-        Long id = encryptionService.encryptAndStore(originalText);
-        String decryptedText = encryptionService.decryptFromStore(id);
+        Long id = encryptionService.encryptAndStore(originalText, userId);
+        String decryptedText = encryptionService.decryptFromStore(id, userId);
 
         // Then
         assertEquals(originalText, decryptedText);
@@ -108,17 +113,18 @@ class EncryptionServiceTest {
     void testEncryptAndStore_UniqueIVsAndKeys() {
         // Given
         String plainText = "Same text encrypted twice";
+        String userId = "test-user-123";
 
         // Capture saved data
         ArgumentCaptor<EncryptedData> captor = ArgumentCaptor.forClass(EncryptedData.class);
         when(repository.save(any(EncryptedData.class))).thenReturn(
-                EncryptedData.builder().id(1L).build(),
-                EncryptedData.builder().id(2L).build()
+                EncryptedData.builder().id(1L).userId(userId).build(),
+                EncryptedData.builder().id(2L).userId(userId).build()
         );
 
         // When - encrypt same text twice
-        encryptionService.encryptAndStore(plainText);
-        encryptionService.encryptAndStore(plainText);
+        encryptionService.encryptAndStore(plainText, userId);
+        encryptionService.encryptAndStore(plainText, userId);
 
         // Then - verify IVs and ciphertexts are different
         verify(repository, times(2)).save(captor.capture());
@@ -135,27 +141,29 @@ class EncryptionServiceTest {
     @Test
     void testDecryptFromStore_NotFound() {
         // Given
+        String userId = "test-user-123";
         when(repository.findById(999L)).thenReturn(Optional.empty());
 
         // When & Then
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            encryptionService.decryptFromStore(999L);
+            encryptionService.decryptFromStore(999L, userId);
         });
 
-        assertTrue(exception.getMessage().contains("Failed to decrypt data") ||
-                   exception.getCause().getMessage().contains("Data not found"));
+        assertTrue(exception.getMessage().contains("not found") ||
+                   exception.getMessage().contains("Failed to decrypt data"));
     }
 
     @Test
     void testEncryptAndStore_EmptyString() {
         // Given
         String emptyText = "";
+        String userId = "test-user-123";
         when(repository.save(any(EncryptedData.class))).thenReturn(
-                EncryptedData.builder().id(1L).build()
+                EncryptedData.builder().id(1L).userId(userId).build()
         );
 
         // When
-        Long id = encryptionService.encryptAndStore(emptyText);
+        Long id = encryptionService.encryptAndStore(emptyText, userId);
 
         // Then
         assertNotNull(id);
@@ -166,12 +174,13 @@ class EncryptionServiceTest {
     void testEncryptAndStore_LongString() {
         // Given
         String longText = "A".repeat(10000); // 10KB string
+        String userId = "test-user-123";
         when(repository.save(any(EncryptedData.class))).thenReturn(
-                EncryptedData.builder().id(1L).build()
+                EncryptedData.builder().id(1L).userId(userId).build()
         );
 
         // When
-        Long id = encryptionService.encryptAndStore(longText);
+        Long id = encryptionService.encryptAndStore(longText, userId);
 
         // Then
         assertNotNull(id);
@@ -186,9 +195,11 @@ class EncryptionServiceTest {
     void testEncryptAndStore_SpecialCharacters() {
         // Given
         String specialText = "Special chars: !@#$%^&*()_+-={}[]|\\:;\"'<>,.?/~`\n\t\r";
+        String userId = "test-user-123";
         when(repository.save(any(EncryptedData.class))).thenAnswer(invocation -> {
             EncryptedData data = invocation.getArgument(0);
             data.setId(1L);
+            data.setUserId(userId);
             return data;
         });
         when(repository.findById(1L)).thenAnswer(invocation -> {
@@ -198,8 +209,8 @@ class EncryptionServiceTest {
         });
 
         // When
-        Long id = encryptionService.encryptAndStore(specialText);
-        String decrypted = encryptionService.decryptFromStore(id);
+        Long id = encryptionService.encryptAndStore(specialText, userId);
+        String decrypted = encryptionService.decryptFromStore(id, userId);
 
         // Then
         assertEquals(specialText, decrypted);

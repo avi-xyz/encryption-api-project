@@ -382,6 +382,9 @@ resource "aws_lambda_function" "api" {
       DB_USERNAME               = var.db_username
       DB_PASSWORD               = var.db_password
       MASTER_ENCRYPTION_KEY     = var.master_encryption_key
+      AWS_REGION                = var.aws_region
+      COGNITO_USER_POOL_ID      = aws_cognito_user_pool.encryption_api.id
+      COGNITO_CLIENT_ID         = aws_cognito_user_pool_client.api_client.id
     }
   }
 

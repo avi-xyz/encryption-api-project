@@ -11,6 +11,14 @@ spring:
   jpa:
     show-sql: true  # Show SQL in console for debugging
 
+# AWS Cognito Configuration (for local development)
+# Get these values from AWS Console after Cognito is deployed
+aws:
+  cognito:
+    region: ${AWS_REGION:us-east-1}
+    user-pool-id: ${COGNITO_USER_POOL_ID:}  # Set via environment variable
+    client-id: ${COGNITO_CLIENT_ID:}        # Set via environment variable
+
 # Encryption Configuration (for local development only)
 # In production, this will be loaded from AWS Secrets Manager
 encryption:
@@ -22,3 +30,4 @@ logging:
   level:
     com.aviencryption: DEBUG
     org.springframework.web: INFO
+    org.springframework.security: DEBUG

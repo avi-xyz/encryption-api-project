@@ -1,0 +1,59 @@
+# Test Profile Configuration
+# Used for local testing with mock authentication (no Cognito required)
+
+spring:
+  # Database Configuration
+  datasource:
+    url: jdbc:mysql://localhost:3306/encryption_db
+    username: encryptuser
+    password: encryptpass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 20000
+
+  # JPA Configuration
+  jpa:
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+    hibernate:
+      ddl-auto: validate  # Use Flyway for schema management
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Flyway Configuration
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  # Task Execution (for async audit logging)
+  task:
+    execution:
+      pool:
+        core-size: 2
+        max-size: 5
+        queue-capacity: 100
+      thread-name-prefix: async-audit-
+
+# Encryption Configuration
+encryption:
+  master-key: ${ENCRYPTION_MASTER_KEY:p40/SR/ghInf8D27oo9TuvZrTbY+tjBJW3nMNkX/8i4=}
+
+# AWS Cognito (not used in test profile, but needed for property resolution)
+aws:
+  cognito:
+    region: ${AWS_REGION:us-east-1}
+    user-pool-id: ${COGNITO_USER_POOL_ID:not-used-in-test}
+    client-id: ${COGNITO_CLIENT_ID:not-used-in-test}
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.aviencryption: DEBUG
+    org.springframework.security: DEBUG
+    org.flywaydb: INFO

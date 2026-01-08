@@ -72,7 +72,14 @@ terraform/terraform.tfvars
 
 # Security - ensure sensitive files never committed
 terraform/terraform.tfvars
+terraform/terraform.tfvars.BACKUP_DO_NOT_COMMIT
 terraform/*.tfstate*
 lambda-build/
 *.backup
+*.BACKUP_DO_NOT_COMMIT
 target/encryption-api-lambda.jar
+
+# Sensitive documentation files (contain actual credentials)
+**/PRODUCTION_DEPLOYMENT_STATUS.md
+**/COGNITO_DEPLOYMENT_INFO.md
+**/LAMBDA_DEPLOYMENT_GUIDE.md

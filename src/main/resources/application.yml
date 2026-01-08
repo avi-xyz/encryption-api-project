@@ -8,8 +8,8 @@ spring:
   # JPA Configuration
   jpa:
     hibernate:
-      ddl-auto: update  # Automatically create/update database schema
-    show-sql: false     # Set to true for debugging SQL queries
+      ddl-auto: validate  # Changed to validate - use Flyway for migrations
+    show-sql: false       # Set to true for debugging SQL queries
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
@@ -21,6 +21,15 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 5
       connection-timeout: 30000
+
+  # Async Configuration (for audit logging)
+  task:
+    execution:
+      pool:
+        core-size: 2
+        max-size: 5
+        queue-capacity: 100
+      thread-name-prefix: async-audit-
 
 # Server Configuration
 server:
@@ -46,3 +55,17 @@ logging:
     com.aviencryption: INFO
     org.springframework.web: WARN
     org.hibernate: WARN
+    org.springframework.security: INFO
+
+# AWS Cognito Configuration
+# These values should be overridden in environment-specific configs or environment variables
+aws:
+  cognito:
+    region: ${AWS_REGION:us-east-1}
+    user-pool-id: ${COGNITO_USER_POOL_ID:}
+    client-id: ${COGNITO_CLIENT_ID:}
+
+# Encryption Configuration
+# Master key should be stored in AWS Secrets Manager in production
+encryption:
+  master-key: ${ENCRYPTION_MASTER_KEY:}

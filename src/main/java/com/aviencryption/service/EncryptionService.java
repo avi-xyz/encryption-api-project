@@ -1,5 +1,7 @@
 package com.aviencryption.service;
 
+import com.aviencryption.exception.ResourceNotFoundException;
+import com.aviencryption.exception.UnauthorizedException;
 import com.aviencryption.model.EncryptedData;
 import com.aviencryption.repository.EncryptedDataRepository;
 import lombok.RequiredArgsConstructor;
@@ -56,15 +58,16 @@ public class EncryptionService {
      * 2. Generate a random 96-bit IV
      * 3. Encrypt plaintext using AES-256-GCM
      * 4. Encrypt the data key with master key
-     * 5. Store ciphertext, encrypted key, and IV in database
+     * 5. Store ciphertext, encrypted key, and IV in database with user ownership
      *
      * @param plainText The string to encrypt
+     * @param userId The ID of the user who owns this data
      * @return The database record ID
      */
     @Transactional
-    public Long encryptAndStore(String plainText) {
+    public Long encryptAndStore(String plainText, String userId) {
         try {
-            log.info("Encrypting and storing data");
+            log.info("Encrypting and storing data for user: {}", userId);
 
             // Step 1: Generate unique encryption key for this record
             SecretKey dataKey = generateAESKey();
@@ -78,37 +81,56 @@ public class EncryptionService {
             // Step 4: Encrypt the data key with the master key (key wrapping)
             byte[] encryptedKey = encryptKey(dataKey);
 
-            // Step 5: Store in database
+            // Step 5: Store in database with user ownership
             EncryptedData encryptedData = EncryptedData.builder()
+                    .userId(userId)
                     .cipherText(cipherText)
                     .encryptionKey(encryptedKey)
                     .iv(iv)
                     .build();
 
             EncryptedData saved = repository.save(encryptedData);
-            log.info("Data encrypted and stored with ID: {}", saved.getId());
+            log.info("Data encrypted and stored with ID: {} for user: {}", saved.getId(), userId);
 
             return saved.getId();
 
         } catch (Exception e) {
-            log.error("Encryption failed", e);
+            log.error("Encryption failed for user: {}", userId, e);
             throw new RuntimeException("Failed to encrypt data", e);
         }
     }
 
     /**
-     * Decrypts data from the database (optional - for future use)
+     * Decrypts data from the database with user authorization check
+     *
+     * Security:
+     * - Verifies the requesting user owns the encrypted data
+     * - Returns 404 if data doesn't exist (prevents enumeration)
+     * - Returns 403 if user doesn't own the data
      *
      * @param id The database record ID
+     * @param userId The ID of the user requesting decryption
      * @return The decrypted plaintext
+     * @throws ResourceNotFoundException if data doesn't exist or user doesn't own it
+     * @throws UnauthorizedException if user tries to access someone else's data
      */
     @Transactional(readOnly = true)
-    public String decryptFromStore(Long id) {
+    public String decryptFromStore(Long id, String userId) {
         try {
-            log.info("Decrypting data with ID: {}", id);
+            log.info("Decrypting data with ID: {} for user: {}", id, userId);
 
+            // First check if record exists at all
             EncryptedData data = repository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Data not found with ID: " + id));
+                    .orElseThrow(() -> new ResourceNotFoundException("EncryptedData", id));
+
+            // Authorization check - verify user owns this data
+            if (!data.getUserId().equals(userId)) {
+                log.warn("User {} attempted to access encrypted data {} owned by {}",
+                        userId, id, data.getUserId());
+                // Return 404 instead of 403 to prevent enumeration
+                // Don't reveal whether resource exists but user lacks permission
+                throw new ResourceNotFoundException("EncryptedData", id);
+            }
 
             // Decrypt the data key using master key
             SecretKey dataKey = decryptKey(data.getEncryptionKey());
@@ -116,10 +138,14 @@ public class EncryptionService {
             // Decrypt the ciphertext using data key
             byte[] plainTextBytes = decrypt(data.getCipherText(), dataKey, data.getIv());
 
+            log.info("Successfully decrypted data {} for user {}", id, userId);
             return new String(plainTextBytes);
 
+        } catch (ResourceNotFoundException | UnauthorizedException e) {
+            // Re-throw security exceptions
+            throw e;
         } catch (Exception e) {
-            log.error("Decryption failed for ID: {}", id, e);
+            log.error("Decryption failed for ID: {} and user: {}", id, userId, e);
             throw new RuntimeException("Failed to decrypt data", e);
         }
     }

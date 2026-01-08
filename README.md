@@ -9,6 +9,8 @@ A production-ready serverless REST API for encrypting strings using AES-256-GCM 
 - **Strong Encryption**: AES-256-GCM (Galois/Counter Mode) - industry standard authenticated encryption
 - **Secure Storage**: MySQL 8 database with encrypted data and key management
 - **Serverless Architecture**: AWS Lambda + API Gateway (no servers to manage)
+- **JWT Authentication**: AWS Cognito for secure user authentication
+- **Multi-Tenant**: Data isolation per user with automatic provisioning
 - **Rate Limiting**: 5 requests/minute, 20 requests/hour via API Gateway
 - **Auto-scaling**: Scales from 0 to 1000s of concurrent requests
 - **HTTPS/SSL**: Built-in SSL certificate via API Gateway
@@ -16,6 +18,52 @@ A production-ready serverless REST API for encrypting strings using AES-256-GCM 
 - **REST API**: Clean RESTful interface with JSON
 - **Comprehensive Testing**: Unit tests, integration tests with Testcontainers, Postman collection
 - **Infrastructure as Code**: Complete Terraform deployment automation
+
+## Request API Access
+
+Want to use the live API? Request access credentials via GitHub!
+
+### How to Request Access
+
+1. **[Create an Access Request Issue](https://github.com/avi-xyz/encryption-api/issues/new?template=api-access-request.yml)**
+2. Fill out the form with:
+   - Your email address (becomes your username)
+   - Full name and organization
+   - Brief description of your use case
+   - Expected usage volume
+3. Wait for approval (typically 24-48 hours)
+4. Receive your credentials:
+   - **Username**: Your email
+   - **Temporary Password**: Sent via email or GitHub issue
+   - **API Documentation**: Full guide with code examples
+
+### After Approval
+
+Once you receive your credentials, authenticate and start using the API:
+
+```bash
+# Login to get JWT token
+curl -X POST https://3tyukwdl69.execute-api.us-east-1.amazonaws.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"your-email@example.com","password":"your-password"}'
+
+# Response includes idToken, accessToken, and refreshToken
+# Use idToken for all authenticated requests
+
+# Encrypt data
+curl -X POST https://3tyukwdl69.execute-api.us-east-1.amazonaws.com/api/encrypt \
+  -H "Authorization: Bearer YOUR_ID_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"plainText":"my secret message"}'
+```
+
+See [API_DOCUMENTATION.md](API_DOCUMENTATION.md) for complete API reference with code examples in Python, Node.js, and more.
+
+### Developer Access
+
+If you want to deploy your own instance, skip to [Quick Start (macOS)](#quick-start-macos) below for local development setup.
+
+---
 
 ## Quick Start (macOS)
 
