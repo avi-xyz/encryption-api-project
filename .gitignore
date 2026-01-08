@@ -83,3 +83,7 @@ target/encryption-api-lambda.jar
 **/PRODUCTION_DEPLOYMENT_STATUS.md
 **/COGNITO_DEPLOYMENT_INFO.md
 **/LAMBDA_DEPLOYMENT_GUIDE.md
+
+# Auto-generated credential files
+credentials-local.txt
+**/credentials-local.txt
