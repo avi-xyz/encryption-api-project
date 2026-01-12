@@ -1,0 +1,694 @@
+{
+	"info": {
+		"_postman_id": "encryption-api-collection",
+		"name": "Encryption API - Production",
+		"description": "Complete Postman collection for testing the Encryption API with AWS Cognito authentication.\n\n## Setup Instructions\n\n1. Import this collection into Postman\n2. Create a new environment or use the provided environment variables\n3. Set your username and password in the environment\n4. Run the \"Login\" request first to get JWT tokens\n5. Tokens are automatically saved to environment variables\n6. All other requests will use the saved tokens automatically\n\n## Environment Variables\n\nRequired:\n- `base_url`: https://3tyukwdl69.execute-api.us-east-1.amazonaws.com\n- `username`: Your email address\n- `password`: Your password\n\nAuto-populated (after login):\n- `id_token`: JWT ID token (used for API authentication)\n- `access_token`: JWT access token\n- `refresh_token`: JWT refresh token (valid for 30 days)\n- `encrypted_id`: Last encrypted data ID (for decrypt testing)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Parse response",
+									"const jsonData = pm.response.json();",
+									"",
+									"// Save tokens to environment variables",
+									"if (jsonData.idToken) {",
+									"    pm.environment.set('id_token', jsonData.idToken);",
+									"    console.log('✓ ID Token saved to environment');",
+									"}",
+									"",
+									"if (jsonData.accessToken) {",
+									"    pm.environment.set('access_token', jsonData.accessToken);",
+									"    console.log('✓ Access Token saved to environment');",
+									"}",
+									"",
+									"if (jsonData.refreshToken) {",
+									"    pm.environment.set('refresh_token', jsonData.refreshToken);",
+									"    console.log('✓ Refresh Token saved to environment');",
+									"}",
+									"",
+									"// Verify response",
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains idToken', function () {",
+									"    pm.expect(jsonData).to.have.property('idToken');",
+									"});",
+									"",
+									"pm.test('Response contains accessToken', function () {",
+									"    pm.expect(jsonData).to.have.property('accessToken');",
+									"});",
+									"",
+									"pm.test('Response contains refreshToken', function () {",
+									"    pm.expect(jsonData).to.have.property('refreshToken');",
+									"});",
+									"",
+									"pm.test('Token expires in 3600 seconds (1 hour)', function () {",
+									"    pm.expect(jsonData.expiresIn).to.eql(3600);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Authenticate with AWS Cognito and receive JWT tokens.\n\n**Required Environment Variables:**\n- `username`: Your email address\n- `password`: Your password\n\n**Returns:**\n- `idToken`: Use this in Authorization header for API calls\n- `accessToken`: Additional access token\n- `refreshToken`: Use to refresh tokens without re-entering password\n- `expiresIn`: Token expiration time (3600 seconds = 1 hour)\n\n**Auto-saved to Environment:**\nAll tokens are automatically saved to environment variables for use in subsequent requests."
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Parse response",
+									"const jsonData = pm.response.json();",
+									"",
+									"// Update tokens in environment",
+									"if (jsonData.idToken) {",
+									"    pm.environment.set('id_token', jsonData.idToken);",
+									"    console.log('✓ ID Token refreshed');",
+									"}",
+									"",
+									"if (jsonData.accessToken) {",
+									"    pm.environment.set('access_token', jsonData.accessToken);",
+									"    console.log('✓ Access Token refreshed');",
+									"}",
+									"",
+									"// Verify response",
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains new idToken', function () {",
+									"    pm.expect(jsonData).to.have.property('idToken');",
+									"});",
+									"",
+									"pm.test('Response contains new accessToken', function () {",
+									"    pm.expect(jsonData).to.have.property('accessToken');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/refresh",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"refresh"
+							]
+						},
+						"description": "Refresh your access token without re-entering credentials.\n\n**Required Environment Variable:**\n- `refresh_token`: The refresh token from login (valid for 30 days)\n\n**Returns:**\n- New `idToken` and `accessToken`\n- Tokens are automatically updated in environment variables"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints for obtaining and refreshing JWT tokens via AWS Cognito."
+		},
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "Health Check",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"",
+									"pm.test('Status is UP', function () {",
+									"    pm.expect(jsonData.status).to.eql('UP');",
+									"});",
+									"",
+									"pm.test('Response contains timestamp', function () {",
+									"    pm.expect(jsonData).to.have.property('timestamp');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"health"
+							]
+						},
+						"description": "Check API availability and health status.\n\n**Authentication:** Not required\n\n**Returns:**\n- `status`: \"UP\" if API is healthy\n- `timestamp`: Current server time"
+					},
+					"response": []
+				}
+			],
+			"description": "Health check endpoint to verify API availability."
+		},
+		{
+			"name": "Encryption",
+			"item": [
+				{
+					"name": "Encrypt Data",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const jsonData = pm.response.json();",
+									"",
+									"// Save encrypted ID for decrypt testing",
+									"if (jsonData.id) {",
+									"    pm.environment.set('encrypted_id', jsonData.id);",
+									"    console.log('✓ Encrypted ID saved: ' + jsonData.id);",
+									"}",
+									"",
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response contains ID', function () {",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"});",
+									"",
+									"pm.test('Response contains success message', function () {",
+									"    pm.expect(jsonData).to.have.property('message');",
+									"    pm.expect(jsonData.message).to.include('encrypted');",
+									"});",
+									"",
+									"pm.test('Response contains userId', function () {",
+									"    pm.expect(jsonData).to.have.property('userId');",
+									"});",
+									"",
+									"pm.test('Response contains timestamp', function () {",
+									"    pm.expect(jsonData).to.have.property('timestamp');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{id_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"plainText\": \"My sensitive credit card number is 1234-5678-9012-3456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/encrypt",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"encrypt"
+							]
+						},
+						"description": "Encrypt sensitive data and store it securely.\n\n**Authentication:** Required (JWT Bearer token)\n\n**Request Body:**\n```json\n{\n  \"plainText\": \"Your sensitive data\"\n}\n```\n\n**Returns:**\n- `id`: Encrypted data ID (use this to decrypt later)\n- `message`: Success confirmation\n- `userId`: Your user ID (from Cognito JWT)\n- `timestamp`: When the data was encrypted\n\n**Security:**\n- Data is encrypted with AES-256-GCM\n- Each user can only access their own encrypted data\n- Encryption keys are stored in AWS Secrets Manager"
+					},
+					"response": []
+				},
+				{
+					"name": "Decrypt Data",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const jsonData = pm.response.json();",
+									"",
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains ID', function () {",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"});",
+									"",
+									"pm.test('Response contains plainText', function () {",
+									"    pm.expect(jsonData).to.have.property('plainText');",
+									"});",
+									"",
+									"pm.test('Response contains userId', function () {",
+									"    pm.expect(jsonData).to.have.property('userId');",
+									"});",
+									"",
+									"pm.test('Response contains timestamp', function () {",
+									"    pm.expect(jsonData).to.have.property('timestamp');",
+									"});",
+									"",
+									"// Verify decrypted data matches what we encrypted",
+									"if (pm.environment.get('last_encrypted_text')) {",
+									"    pm.test('Decrypted text matches original', function () {",
+									"        pm.expect(jsonData.plainText).to.eql(pm.environment.get('last_encrypted_text'));",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{id_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/decrypt/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"decrypt",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "{{encrypted_id}}",
+									"description": "The ID returned from the encrypt endpoint"
+								}
+							]
+						},
+						"description": "Retrieve and decrypt previously encrypted data.\n\n**Authentication:** Required (JWT Bearer token)\n\n**Path Parameter:**\n- `id`: The encrypted data ID from the encrypt endpoint\n\n**Returns:**\n- `id`: The encrypted data ID\n- `plainText`: Your original unencrypted data\n- `userId`: Your user ID\n- `timestamp`: When the data was retrieved\n\n**Security:**\n- You can only decrypt your own data\n- Attempting to decrypt another user's data returns 403 Forbidden\n- Non-existent IDs return 404 Not Found"
+					},
+					"response": []
+				},
+				{
+					"name": "Encrypt - Sample SSN",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const jsonData = pm.response.json();",
+									"",
+									"if (jsonData.id) {",
+									"    pm.environment.set('encrypted_id', jsonData.id);",
+									"}",
+									"",
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{id_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"plainText\": \"SSN: 123-45-6789\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/encrypt",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"encrypt"
+							]
+						},
+						"description": "Example: Encrypt a Social Security Number"
+					},
+					"response": []
+				},
+				{
+					"name": "Encrypt - Sample API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const jsonData = pm.response.json();",
+									"",
+									"if (jsonData.id) {",
+									"    pm.environment.set('encrypted_id', jsonData.id);",
+									"}",
+									"",
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{id_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"plainText\": \"API_KEY=sk-1234567890abcdefghijklmnopqrstuvwxyz\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/encrypt",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"encrypt"
+							]
+						},
+						"description": "Example: Encrypt an API key or secret token"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints for encrypting and decrypting sensitive data with AES-256-GCM encryption."
+		},
+		{
+			"name": "Error Testing",
+			"item": [
+				{
+					"name": "401 - Missing Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 401', function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"plainText\": \"This should fail\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/encrypt",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"encrypt"
+							]
+						},
+						"description": "Test authentication error - attempt to encrypt without JWT token.\n\n**Expected:** 401 Unauthorized"
+					},
+					"response": []
+				},
+				{
+					"name": "401 - Invalid Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 401', function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "invalid.jwt.token",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"plainText\": \"This should fail\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/encrypt",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"encrypt"
+							]
+						},
+						"description": "Test authentication error - attempt to encrypt with invalid JWT token.\n\n**Expected:** 401 Unauthorized"
+					},
+					"response": []
+				},
+				{
+					"name": "404 - Decrypt Non-existent ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 404', function () {",
+									"    pm.response.to.have.status(404);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{id_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/decrypt/99999",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"decrypt",
+								"99999"
+							]
+						},
+						"description": "Test error handling - attempt to decrypt a non-existent ID.\n\n**Expected:** 404 Not Found"
+					},
+					"response": []
+				},
+				{
+					"name": "400 - Invalid Login Credentials",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 400 or 401', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([400, 401]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"nonexistent@example.com\",\n  \"password\": \"wrongpassword\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Test authentication error - attempt to login with invalid credentials.\n\n**Expected:** 400 Bad Request or 401 Unauthorized"
+					},
+					"response": []
+				}
+			],
+			"description": "Test requests to verify error handling and edge cases."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://3tyukwdl69.execute-api.us-east-1.amazonaws.com",
+			"type": "default"
+		}
+	]
+}
